@@ -1,0 +1,119 @@
+/**
+ * @NApiVersion 2.1
+ * @NScriptType Suitelet
+ * @NModuleScope Public
+ */
+define(['N/ui/serverWidget', 'N/record', 'N/log'], function(serverWidget, record, log) {
+    function onRequest(context) {
+        if (context.request.method === 'GET') {
+            var form = serverWidget.createForm({
+                title: 'Grid Order Entry'
+            });
+
+            form.addField({
+                id: 'custpage_order_id',
+                type: serverWidget.FieldType.TEXT,
+                label: 'Order ID'
+            });
+
+            var sublist = form.addSublist({
+                id: 'custpage_grid_lines',
+                type: serverWidget.SublistType.INLINEEDITOR,
+                label: 'Grid Lines'
+            });
+
+            sublist.addField({
+                id: 'custpage_item',
+                type: serverWidget.FieldType.SELECT,
+                label: 'Item',
+                source: 'item'
+            });
+
+            sublist.addField({
+                id: 'custpage_quantity',
+                type: serverWidget.FieldType.INTEGER,
+                label: 'Quantity'
+            });
+
+            sublist.addField({
+                id: 'custpage_price',
+                type: serverWidget.FieldType.CURRENCY,
+                label: 'Price'
+            });
+
+            form.addSubmitButton({
+                label: 'Submit'
+            });
+
+            context.response.writePage(form);
+        } else {
+            var orderId = context.request.parameters.custpage_order_id;
+            var numLines = context.request.getLineCount({
+                group: 'custpage_grid_lines'
+            });
+
+            var orderRecord = record.create({
+                type: 'customrecord_grid_order',
+                isDynamic: true
+            });
+
+            orderRecord.setValue({
+                fieldId: 'name',
+                value: orderId
+            });
+
+            for (var i = 0; i < numLines; i++) {
+                var item = context.request.getSublistValue({
+                    group: 'custpage_grid_lines',
+                    name: 'custpage_item',
+                    line: i
+                });
+
+                var quantity = context.request.getSublistValue({
+                    group: 'custpage_grid_lines',
+                    name: 'custpage_quantity',
+                    line: i
+                });
+
+                var price = context.request.getSublistValue({
+                    group: 'custpage_grid_lines',
+                    name: 'custpage_price',
+                    line: i
+                });
+
+                var lineRecord = record.create({
+                    type: 'customrecord_grid_order_line',
+                    isDynamic: true
+                });
+
+                lineRecord.setValue({
+                    fieldId: 'custrecord_grid_order',
+                    value: orderRecord.id
+                });
+
+                lineRecord.setValue({
+                    fieldId: 'custrecord_item',
+                    value: item
+                });
+
+                lineRecord.setValue({
+                    fieldId: 'custrecord_quantity',
+                    value: quantity
+                });
+
+                lineRecord.setValue({
+                    fieldId: 'custrecord_price',
+                    value: price
+                });
+
+                lineRecord.save();
+            }
+
+            context.response.write('Order created successfully');
+        }
+    }
+
+    return {
+        onRequest: onRequest
+    };
+});
